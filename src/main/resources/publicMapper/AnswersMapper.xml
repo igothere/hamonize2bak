@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+ 
+
+<mapper namespace="com.center.hamonize.answer.mapper.AnswersMapper">
+
+<resultMap type="com.center.hamonize.vote.Vote" id="Vote">
+	<result column="seq" property="seq"/>
+	<result column="pno" property="pno"/>
+	<result column="section" property="section"/>
+	<result column="likes" property="likes"/>
+	<result column="dislikes" property="dislikes"/>
+	<result column="userno" property="userno"/>
+	<result column="senduserno" property="senduserno"/>
+</resultMap>
+
+<resultMap type="com.center.hamonize.vote.VoteUsers" id="VoteUsers">
+	<result column="seq" property="seq"/>
+	<result column="pno" property="pno"/>
+	<result column="section" property="section"/>
+	<result column="userno" property="userno"/>
+</resultMap>
+
+<resultMap type="com.center.hamonize.user.Users" id="Users">
+	<result column="userno" property="userno"/>
+	<result column="userid" property="userid"/>
+	<result column="username" property="username"/>
+	<result column="useremail" property="useremail"/>
+	<result column="userstatus" property="userstatus"/>
+	<result column="userprofileimg" property="userprofileimg"/>
+	<result column="picture" property="picture"/>
+</resultMap>
+
+<resultMap type="com.center.hamonize.tag.Tags" id="Tags">
+	<result column="tagno" property="tagno"/>
+	<result column="title" property="title"/>
+	<result column="userno" property="userno"/>
+</resultMap>
+
+<resultMap type="com.center.hamonize.wiki.Wiki" id="Wiki">
+	<result column="wikino" property="wikino"/>
+	<result column="title" property="title"/>
+	<result column="userno" property="userno"/>
+	<result column="contents" property="contents"/>
+</resultMap>
+
+<resultMap type="com.center.hamonize.answer.Answers" id="Answers">
+	<result column="questionno" property="questionno"/>
+	<result column="editauth" property="editauth"/>
+	<result column="selected" property="selected"/>
+	<result column="contents" property="contents"/>
+	<result column="userno" property="userno"/>
+	<result column="answerno" property="answerno"/>
+	<result column="scores" property="scores"/>
+	<result column="registerdate" property="registerdate"/>
+	<collection property="vote" resultMap="Vote"/>
+	<collection property="users" resultMap="Users"/>
+</resultMap>
+
+	<select id="selectANO" resultType="com.center.hamonize.cmmn.CmmnMap">
+      SELECT COALESCE(max(answerno),0)+1 AS answerno FROM tb_answers
+	</select>
+	<sql id="listWhere">
+		(title like '%' || #{searchtext} || '%' 
+		or
+		contents like '%' || #{searchtext} || '%')
+	</sql>
+	<select id="getList" parameterType="java.lang.Integer" resultMap="Answers">
+		select * from (
+		select 
+		a.questionno,
+		a.selected,
+		a.contents,
+		a.userno,
+		a.answerno,
+		a.registerdate,
+		b.seq,
+		b.pno,
+		b.section,
+		b.likes,
+		b.dislikes,
+		b.userno,
+		b.senduserno,
+		c.userno,
+		c.userid,
+		c.username,
+		c.useremail,
+		c.userstatus,
+		c.userprofileimg,
+		c.picture
+		,(select score from tb_score e where a.userno = e.userno) as scores
+			from 
+		tb_answers a left outer join tb_vote b 
+			on a.answerno = b.pno 
+		left outer join tb_users c on a.userno = c.userno
+		where b.section='A'
+		union all
+		SELECT question_id::integer, 
+		case when is_accepted = 'true' then 1
+		     else 0
+		end as is_accepted , body,0,answer_id::integer,ins_date,0,0,'A',0,0,0,0,0,'','','',0,'','',score::integer 
+		FROM public.tbl_stack_answer) AA
+		where AA.questionno = #{questionno}
+		order by AA.registerdate desc
+	</select>
+	
+	<select id="getListCount" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+		select count(*) from tb_answers
+		<where>
+		questionno = #{questionno} and selected = 1
+		</where>
+	</select>
+	
+	<!-- <select id="getView" parameterType="integer" resultMap="Questions">
+		select a.*,b.*,c.*
+		from tb_questions a left outer join tb_users b on a.userno = b.userno
+		left outer join tb_vote c on a.questionno = c.pno
+		<where>
+		a.questionno = #{questionno}
+		</where>
+	</select> -->
+	
+	<update id="updateReanCnt" parameterType="integer">
+	update tb_questions set readcnt = readcnt + 1
+	<where>
+	questionno = #{questionno}
+	</where>
+	
+	</update>
+	
+	<insert id="insertHistory" parameterType="com.center.hamonize.cmmn.CmmnMap">
+	INSERT INTO TB_QUESTIONS_HISTORY (seq, pno, contents, section, title, deleteat, editauth, readcnt, registerdate, tagno, updatedate, userno)
+		VALUES
+				((SELECT COALESCE(max(seq),0)+1 FROM tb_questions_history),#{questionno},#{contents},#{section},#{title}
+				,#{deleteat},#{editauth},#{readcnt},#{registerdate},#{tagno},#{updatedate},#{userno})
+	</insert>
+
+
+
+	<select id="getAnswerList" parameterType="com.center.hamonize.answer.Answers" resultType="com.center.hamonize.answer.Answers">
+		select * 
+		from   tb_answers 
+		where 
+	        userno in ( select userno from tb_users_detail where enterpriseno = #{userno} )
+	     order by registerdate desc
+	     limit 4
+	</select>	
+	<select id="getAnswerListCnt" parameterType="com.center.hamonize.answer.Answers" resultType="Integer">
+		select count(*)
+		from   tb_answers 
+		where 
+	        userno in ( select userno from tb_users_detail where enterpriseno = #{userno} )
+	</select>	
+	
+	<select id="getView" resultType="com.center.hamonize.answer.Answers">
+		select * from tb_answers where answerno = #{answerno}
+	</select>
+	
+</mapper>

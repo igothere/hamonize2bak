@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+ 
+<mapper namespace="com.center.hamonize.login.mapper.LoginMapper">
+
+<!-- 정보 조회 -->
+<select id="getUser" parameterType="com.center.hamonize.login.vo.LoginVO" resultType="com.center.hamonize.login.vo.LoginVO">
+SELECT 
+	ta.*,tb
+FROM 
+	tb_users ta left outer join tb_users_detail tb on ta.userno = tb.userno
+WHERE
+	ta.userid = #{username} and tb.activeat !=1
+</select>	
+
+<select id="getUserInfo" parameterType="com.center.hamonize.login.vo.LoginVO" resultType="com.center.hamonize.login.vo.LoginVO">
+<!-- select b.*, a.*
+, ( select enterprisearea from tb_enterprises where enterpriseno = b.enterpriseno) as comylocation
+from tb_users a join tb_users_detail b on a.userno = b.userno
+where a.userid  = #{userid}  -->
+SELECT 
+	 tc.enterpriseno, tc.enterprisename, tc.representat, tc.enterprisearea as comylocation , ta.*, tb.*
+FROM 
+	tb_users ta left outer join tb_users_detail tb on ta.userno = tb.userno 
+	left outer join tb_enterprises tc on ta.userno = tc.userno
+WHERE ta.userid  = #{userid}
+</select>
+
+<select id="getSocialUserInfo" parameterType="java.lang.String" resultType="com.center.hamonize.login.vo.LoginVO">
+	select *
+	from tb_users 
+	where userid  = #{userid} 
+</select>		
+
+<update id="updateUserUUID" parameterType="com.center.hamonize.login.vo.LoginVO">
+	UPDATE tb_users  SET uuiduser = #{uuiduser}
+	WHERE userid = #{userid}
+
+</update>
+
+
+<select id="getUserChk" parameterType="com.center.hamonize.login.vo.LoginVO" resultType="com.center.hamonize.login.vo.LoginVO">
+	select * 
+	from tb_users ta, tb_enterprises tb
+	where ta.userno = tb.userno
+	and ta.uuiduser  = #{uuiduser} 
+</select>	
+
+
+<select id="getUserUUIDInfo" parameterType="com.center.hamonize.login.vo.LoginVO" resultType="com.center.hamonize.login.vo.LoginVO">
+	select * 
+	from tb_users ta
+	where ta.uuiduser  = #{uuiduser} 
+</select>	
+
+<insert id="saveLoginHistory" parameterType="com.center.hamonize.login.vo.LoginHistoryVO">
+insert 
+	into
+	 tb_login_history(
+	 	userid,
+	 	logintime
+	 ) values(
+	 	#{userid},
+	 	now()
+	 )
+</insert>
+
+</mapper>

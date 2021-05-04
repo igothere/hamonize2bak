@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+ 
+<mapper namespace="com.center.hamonize.file.mapper.FileMapper">
+	
+	<insert id="saveFile" parameterType="java.util.HashMap">
+	
+	<selectKey resultType="int" keyProperty="file_seq" order="BEFORE">
+		select COALESCE(max(fileseq),0)+1 as fileseq from tb_file
+		where
+		    section = #{section}
+			 and seq = #{seq}
+		</selectKey>
+        INSERT INTO tb_file
+        (
+        	seq, fileseq, section, filerealname, filemakename, filepath , filesize , registerdate
+        )
+        VALUES
+        (
+        	  #{seq}
+        	, #{file_seq}
+        	, #{section}
+        	, #{filerealname}
+        	, #{filemakename}
+        	, #{filepath}
+        	, #{filesize}
+        	, now()
+        )
+    </insert>
+    
+    <select id="viewFile" parameterType="com.center.hamonize.cmmn.CmmnMap" resultType="com.center.hamonize.cmmn.CmmnMap">
+    select * from tb_file
+    where seq = #{seq}
+    and section = #{section}
+    </select>
+    
+    <select id="viewFileList" parameterType="com.center.hamonize.cmmn.CmmnMap" resultType="com.center.hamonize.cmmn.CmmnMap">
+    select * from tb_file
+    where 
+    section = #{section}
+    </select>
+    
+    <update id="updateFile" parameterType="java.util.HashMap">
+        UPDATE tb_file
+        set
+        FILEREALNAME = #{filerealname},
+        FILEMAKENAME = #{filemakename},
+        FILEPATH = #{filepath},
+        FILESIZE = #{filesize},
+        REGISTERDATE = now()
+        where
+		    section = #{section}
+			 and seq = #{seq}
+    </update>
+
+</mapper>

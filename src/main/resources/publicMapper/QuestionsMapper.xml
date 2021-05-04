@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+ 
+
+<mapper namespace="com.center.hamonize.question.mapper.QuestionsMapper">
+
+<resultMap type="com.center.hamonize.vote.Vote" id="Vote">
+	<result column="seq" property="seq"/>
+	<result column="pno" property="pno"/>
+	<result column="section" property="section"/>
+	<result column="likes" property="likes"/>
+	<result column="dislikes" property="dislikes"/>
+	<result column="userno" property="userno"/>
+	<result column="senduserno" property="senduserno"/>
+</resultMap>
+
+<resultMap type="com.center.hamonize.vote.VoteUsers" id="VoteUsers">
+	<result column="seq" property="seq"/>
+	<result column="pno" property="pno"/>
+	<result column="section" property="section"/>
+	<result column="userno" property="userno"/>
+</resultMap>
+
+<resultMap type="com.center.hamonize.user.Users" id="Users">
+	<result column="userno" property="userno"/>
+	<result column="userid" property="userid"/>
+	<result column="username" property="username"/>
+	<result column="useremail" property="useremail"/>
+	<result column="userstatus" property="userstatus"/>
+	<result column="userprofileimg" property="userprofileimg"/>
+	<result column="picture" property="picture"/>
+</resultMap>
+
+<resultMap type="com.center.hamonize.tag.Tags" id="Tags">
+	<result column="tagno" property="tagno"/>
+	<result column="title" property="title"/>
+	<result column="userno" property="userno"/>
+</resultMap>
+
+<resultMap type="com.center.hamonize.wiki.Wiki" id="Wiki">
+	<result column="wikino" property="wikino"/>
+	<result column="title" property="title"/>
+	<result column="userno" property="userno"/>
+	<result column="contents" property="contents"/>
+</resultMap>
+
+<resultMap type="com.center.hamonize.question.Questions" id="Questions">
+	<result column="questionno" property="questionno"/>
+	<result column="editauth" property="editauth"/>
+	<result column="title" property="title"/>
+	<result column="contents" property="contents"/>
+	<result column="userno" property="userno"/>
+	<result column="firstuserno" property="firstuserno"/>
+	<result column="tagno" property="tagno"/>
+	<result column="readcnt" property="readcnt"/>
+	<result column="deleteat" property="deleteat"/>
+	<result column="registerdate" property="registerdate"/>
+	<result column="updatedate" property="updatedate"/>
+	<result column="commentcnt" property="commentcnt"/>
+	<result column="scores" property="scores"/>
+	<result column="firstRecordIndex" property="firstRecordIndex"/>
+	<result column="recordCountPerPage" property="recordCountPerPage"/>
+	<result column="questiontotalcnt" property="questiontotalcnt"/>
+	<result column="answercompletecnt" property="answercompletecnt"/>
+	<collection property="users" resultMap="Users"/>
+	<collection property="vote" resultMap="Vote"/>
+	<collection property="wiki" resultMap="Wiki"/>
+</resultMap>
+
+	<select id="selectQNO" resultType="com.center.hamonize.cmmn.CmmnMap">
+      SELECT COALESCE(max(questionno),0)+1 AS questionno FROM tb_questions
+	</select>
+	<sql id="listWhere">
+	and	(title like '%' || #{searchtext} || '%' 
+		or
+		contents like '%' || #{searchtext} || '%')
+	</sql>
+	<select id="getList" parameterType="com.center.hamonize.question.Questions" resultMap="Questions">
+	select * from
+	(
+		select
+		a.questionno
+		,a.title
+		,a.contents
+		,a.deleteat
+		,a.editauth
+		,a.readcnt
+		,a.registerdate
+		,a.tagno
+		,a.updatedate
+		,a.firstuserno
+		,a.userno
+		,b.userno
+		,b.userid
+		,b.username
+		,b.useremail
+		,b.userstatus
+		,b.userprofileimg
+		,b.picture
+		,c.seq
+		,c.pno
+		,c.section
+		,c.userno
+		,c.likes
+		,c.dislikes
+		,c.senduserno
+		,(select count(d.answerno) from tb_answers d where a.questionno = d.questionno) as commentcnt
+		,(select score from tb_score e where a.userno = e.userno) as scores
+		from tb_questions a left outer join tb_users b on a.firstuserno = b.userno
+		left outer join tb_vote c on a.questionno = c.pno
+		<where>
+		 c.section = 'Q'
+		 and a.deleteat = 0
+		<if test="searchtext != null and searchtext != ''">
+		<include refid="listWhere" />
+		</if>
+		</where>
+		union all
+		 select
+		 question_id::INTEGER
+		 ,title
+		 ,body
+		 ,0
+		 ,0
+		 ,view_count::INTEGER
+		 ,ins_date
+		 ,''
+		 ,ins_date
+		 ,0
+		 ,0
+		 ,0
+		 ,''
+		 ,''
+		 ,''
+		 ,0
+		 ,''
+		 ,''
+		 ,0
+		 ,0
+		 ,'Q'
+		 ,0
+		 ,0
+		 ,0
+		 ,0
+		 ,comment_count::INTEGER
+		 ,score::INTEGER
+		 from tbl_stack_question 
+		 <where>
+		<if test="searchtext != null and searchtext != ''">
+		and	(upper(title) like '%' || upper(#{searchtext}) || '%' 
+		or
+		upper(body) like '%' || upper(#{searchtext}) || '%')
+		</if>
+		</where>
+		 ) AA
+		<if test="sort == null" >order by AA.registerdate desc</if>
+		<if test="sort == 1" >order by AA.registerdate desc</if>
+		<if test="sort == 2" >order by AA.commentcnt asc,AA.registerdate desc</if>
+		<if test="sort == 3" >order by AA.likes desc,AA.registerdate desc</if>
+		OFFSET #{firstRecordIndex} LIMIT #{recordCountPerPage}
+	</select>
+	
+	<select id="getListCount" parameterType="com.center.hamonize.question.Questions" resultType="java.lang.Integer">
+	select sum(AA.cnt) from (
+		select count(*) as cnt from tb_questions
+		<where>
+		deleteat = 0
+		<if test="searchtext != null and searchtext != ''">
+		<include refid="listWhere" />
+		</if>
+		</where>
+		union all select count(*) as cnt from tbl_stack_question
+		<where>
+		<if test="searchtext != null and searchtext != ''">
+		(upper(title) like '%' || upper(#{searchtext}) || '%' 
+		or
+		upper(body) like '%' || upper(#{searchtext}) || '%')
+		</if>
+		</where>
+		) AA
+	</select>
+	
+	<select id="getView" parameterType="integer" resultMap="Questions">
+		select * from
+	( select
+		a.questionno
+		,a.title
+		,a.contents
+		,a.section
+		,a.deleteat
+		,a.editauth
+		,a.readcnt
+		,a.registerdate
+		,a.tagno
+		,a.updatedate
+		,a.firstuserno
+		,a.userno
+		,b.userno
+		,b.userid
+		,b.username
+		,b.useremail
+		,b.userstatus
+		,b.userprofileimg
+		,b.picture
+		,c.seq
+		,c.pno
+		,c.section as votesection
+		,c.userno
+		,c.likes
+		,c.dislikes
+		,c.senduserno
+		,(select count(d.answerno) from tb_answers d where a.questionno = d.questionno) as commentcnt
+		,(select score from tb_score e where a.userno = e.userno) as scores
+		from tb_questions a left outer join tb_users b on a.firstuserno = b.userno
+		left outer join tb_vote c on a.questionno = c.pno
+		union all
+		 select
+		 question_id::INTEGER
+		 ,title
+		 ,body
+		 ,''
+		 ,0
+		 ,0
+		 ,view_count::INTEGER
+		 ,ins_date
+		 ,''
+		 ,ins_date
+		 ,0
+		 ,0
+		 ,0
+		 ,''
+		 ,''
+		 ,''
+		 ,0
+		 ,''
+		 ,''
+		 ,0
+		 ,0
+		 ,'Q'
+		 ,0
+		 ,0
+		 ,0
+		 ,0
+		 ,comment_count::INTEGER
+		 ,score::INTEGER
+		 from tbl_stack_question ) AA
+		<where>
+		AA.questionno = #{questionno}
+		and AA.votesection = 'Q'
+		and AA.deleteat = 0
+		</where>
+	</select>
+	
+	<update id="updateReanCnt" parameterType="integer">
+	update tb_questions set readcnt = readcnt + 1
+	<where>
+	questionno = #{questionno}
+	</where>
+	
+	</update>
+	
+	<insert id="insertHistory" parameterType="com.center.hamonize.cmmn.CmmnMap">
+	INSERT INTO TB_QUESTIONS_HISTORY (seq, pno, contents, section, title, deleteat, editauth, readcnt, registerdate, tagno, updatedate, userno)
+		VALUES
+				((SELECT COALESCE(max(seq),0)+1 FROM tb_questions_history),#{questionno},#{contents},#{section},#{title}
+				,#{deleteat},#{editauth},#{readcnt},#{registerdate},#{tagno},#{updatedate},#{userno})
+	</insert>
+	
+	<select id="selectHistoryCnt" parameterType="com.center.hamonize.cmmn.CmmnMap" resultType="integer">
+	select count(*) from tb_questions_history where pno = #{questionno}
+	</select>
+	
+	<select id="selectHistory" parameterType="com.center.hamonize.cmmn.CmmnMap" resultType="com.center.hamonize.cmmn.CmmnMap">
+	select * from tb_questions_history where pno = #{questionno}
+	</select>
+
+
+	<select id="getMyQuestionList" parameterType="com.center.hamonize.question.Questions" resultMap="Questions">
+		SELECT
+			a.questionno
+			,a.title
+			,a.contents
+			,a.section
+			,a.deleteat
+			,a.editauth
+			,a.readcnt
+			,a.registerdate
+			,a.tagno
+			,a.updatedate
+			,a.firstuserno
+			,a.userno
+			,b.*,c.*
+			,(SELECT 
+					count(d.answerno) 
+				FROM 
+					tb_answers d 
+				WHERE 
+					a.questionno = d.questionno) AS commentcnt
+		FROM 
+			tb_questions a LEFT OUTER JOIN tb_users b ON a.firstuserno = b.userno
+			LEFT OUTER JOIN tb_vote c ON a.questionno = c.pno
+		WHERE
+			a.userno = ( select userno from tb_users_detail where userno = #{userno} )
+			AND c.section = #{section}
+		ORDER BY a.registerdate DESC
+		OFFSET #{firstRecordIndex} LIMIT #{recordCountPerPage}
+	</select>
+	
+	<select id="getMyAnswerList" parameterType="com.center.hamonize.question.Questions" resultMap="Questions">
+		SELECT 
+			* 
+		FROM 
+			tb_answers 
+		WHERE 
+	        userno = ( SELECT userno FROM tb_users_detail WHERE userno = #{userno} )
+     ORDER BY registerdate desc
+     OFFSET #{firstRecordIndex} LIMIT #{recordCountPerPage}
+	</select>
+	
+	
+	<select id="getMyQuestionListEnter" parameterType="com.center.hamonize.question.Questions" resultMap="Questions">
+		SELECT
+			a.questionno
+			,a.title
+			,a.contents
+			,a.section
+			,a.deleteat
+			,a.editauth
+			,a.readcnt
+			,a.registerdate
+			,a.tagno
+			,a.updatedate
+			,a.firstuserno
+			,a.userno
+			,b.*,c.*
+			,(SELECT 
+					count(d.answerno) 
+				FROM 
+					tb_answers d 
+				WHERE 
+					a.questionno = d.questionno) AS commentcnt
+		FROM 
+			tb_questions a LEFT OUTER JOIN tb_users b ON a.firstuserno = b.userno
+			LEFT OUTER JOIN tb_vote c ON a.questionno = c.pno
+		WHERE
+			a.userno in ( select userno from tb_users_detail where enterpriseno = #{userno} )
+			AND c.section = #{section}
+		ORDER BY a.registerdate DESC
+		OFFSET #{firstRecordIndex} LIMIT #{recordCountPerPage}
+	</select>
+	
+	<select id="getMyAnswerListEnter" parameterType="com.center.hamonize.question.Questions" resultMap="Questions">
+		SELECT 
+			* 
+		FROM 
+			tb_answers 
+		WHERE 
+	        userno IN ( SELECT userno FROM tb_users_detail WHERE enterpriseno = #{userno} )
+     ORDER BY registerdate desc
+     OFFSET #{firstRecordIndex} LIMIT #{recordCountPerPage}
+	</select>
+	
+	
+	<select id="getCompQuestionList" parameterType="String" resultMap="Questions">
+		select 
+		    a.questionno
+		    ,a.title
+		    ,a.contents
+		    ,a.section
+		    ,a.deleteat
+		    ,a.editauth
+		    ,a.readcnt
+		    ,a.registerdate
+		    ,a.tagno
+		    ,a.updatedate
+		    ,a.userno
+		    ,b.*,c.*
+		    ,(select count(d.answerno) from tb_answers d where a.questionno = d.questionno) as commentcnt
+	    
+		from tb_questions a left outer join tb_users b on a.userno = b.userno left outer join tb_vote c on a.questionno = c.pno
+		where b.location = ( select enterprisearea from tb_enterprises where userno = (select userno from tb_users where uuiduser = #{useruuid}) )
+	</select>
+	
+	<select id="getCompQuestionListCount" parameterType="String" resultType="java.lang.Integer">
+		select 
+		    count(*)
+		from tb_questions a left outer join tb_users b on a.userno = b.userno left outer join tb_vote c on a.questionno = c.pno
+		where b.location = ( select enterprisearea from tb_enterprises where userno = (select userno from tb_users where uuiduser = #{useruuid}) )
+			and (select count(d.answerno) from tb_answers d where a.questionno = d.questionno)  = '0'
+	</select>
+<!-- 	and to_char(a.registerdate, 'YYYY-MM-DD') >= to_char(now(), 'YYYY-MM-DD') -->
+	
+	
+	<select id="getAnswerComplete" parameterType="String" resultMap="Questions">
+		select 
+			count(*) as questiontotalcnt, 
+			sum(TA.questionChk) as answercompletecnt
+		from (
+			select  
+			    distinct(TA.questionno)
+			    , CASE WHEN TB.questionno > 0 THEN 1  ELSE 0 END  questionChk 
+			    , TB.questionno
+			from tb_questions TA  left outer join tb_answers TB on TA.questionno = TB.questionno
+		)TA 
+	</select>	
+	
+</mapper>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+ 
+<mapper namespace="com.center.hamonize.login.mapper.LoginMapper">
+
+<!-- 정보 조회 -->
+<select id="totalSearch" parameterType="com.center.hamonize.cmmn.CmmnMap" resultType="com.center.hamonize.cmmn.CmmnMap">
+
+	select ta.* from (
+        select questionno as seq,title , contents , 'Q' as status, COUNT(*)
+        OVER(PARTITION BY questionno order by readcnt desc ) as cnt from tb_questions 
+        where deleteat = 0 and upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(contents) like '%' || upper(#{searchtxt}) || '%'
+        limit 10
+    ) ta
+	
+	union all 
+		
+	select tb.* from (
+		select wikino as seq,title , contents , 'T' as status, COUNT(*)
+	    OVER(PARTITION BY wikino) as cnt from tb_wiki 
+	    where deleteat = 0 and section = 't' and upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(contents) like '%' || upper(#{searchtxt}) || '%'
+	    limit 10 
+	) tb 
+	    
+	union all 
+		
+	select tc.* from (
+		select wikino as seq,title , contents , 'H' as status, COUNT(*)
+	    OVER(PARTITION BY wikino) as cnt from tb_wiki 
+	    where deleteat = 0 and section = 'h' and  upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(contents) like '%' || upper(#{searchtxt}) || '%'
+	    limit 10
+	) tc 
+	
+	union all 
+	   
+	select td.* from (
+		select question_id::integer as seq,title , body as contents , 'Q' as status, COUNT(*)
+	    OVER(PARTITION BY question_id  order by view_count desc ) as cnt from tbl_stack_question 
+	    where upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(body) like '%' || upper(#{searchtxt}) || '%'
+	    limit 10 
+	) td 
+
+
+
+</select>
+<!--<select id="totalSearch" parameterType="com.center.hamonize.cmmn.CmmnMap" resultType="com.center.hamonize.cmmn.CmmnMap">
+ select a.* from (
+	select questionno as seq,title , contents , 'Q' as status, COUNT(*)
+		OVER(PARTITION BY questionno) as cnt from tb_questions 
+		where upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(contents) like '%' || upper(#{searchtxt}) || '%'
+			union all 
+				select wikino as seq,title , contents , 'T' as status, COUNT(*)
+			OVER(PARTITION BY wikino) as cnt from tb_wiki where section = 't' and upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(contents) like '%' || upper(#{searchtxt}) || '%'
+			union all 
+				select wikino as seq,title , contents , 'H' as status, COUNT(*)
+			OVER(PARTITION BY wikino) as cnt from tb_wiki where section = 'h' and upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(contents) like '%' || upper(#{searchtxt}) || '%'
+			union all 
+				select question_id::integer as seq,title , body as contents , 'Q' as status, COUNT(*)
+			OVER(PARTITION BY question_id) as cnt from tbl_stack_question
+			where upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(body) like '%' || upper(#{searchtxt}) || '%'
+			 ) a 
+			limit 40
+</select> -->
+
+<select id="preSearch" parameterType="com.center.hamonize.cmmn.CmmnMap" resultType="com.center.hamonize.cmmn.CmmnMap">
+select a.* from (
+	select questionno as seq,title , contents , 'Q' as status, COUNT(*)
+		OVER(PARTITION BY questionno) as cnt from tb_questions
+		where deleteat = 0 and upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(contents) like '%' || upper(#{searchtxt}) || '%'
+		union all 
+	select wikino as seq,title , contents , 'W' as status, COUNT(*)
+			OVER(PARTITION BY wikino) as cnt from tb_wiki
+		where deleteat = 0 and upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(contents) like '%' || upper(#{searchtxt}) || '%'	
+			) a 
+</select>
+
+<select id="autoSearch" parameterType="com.center.hamonize.cmmn.CmmnMap" resultType="com.center.hamonize.cmmn.CmmnMap">
+
+select distinct a.title from(select title,contents from tb_questions 
+where deleteat = 0 and upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(contents) like '%' || upper(#{searchtxt}) || '%'
+union all 
+select title,contents from tb_wiki
+where deleteat = 0 and upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(contents) like '%' || upper(#{searchtxt}) || '%'
+union all
+select title,body from tbl_stack_question
+where upper(title) like '%' || upper(#{searchtxt}) || '%' or upper(body) like '%' || upper(#{searchtxt}) || '%'
+) a 
+limit 30
+</select>
+
+<select id="boardConfig" parameterType="com.center.hamonize.cmmn.CmmnMap" resultType="com.center.hamonize.cmmn.CmmnMap">
+select * from tb_boardconfig where deleteat = 0
+
+</select>
+
+
+
+
+</mapper>

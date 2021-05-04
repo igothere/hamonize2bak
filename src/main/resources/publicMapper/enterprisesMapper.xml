@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+ 
+<mapper namespace="com.center.hamonize.enterprise.mapper.EnterprisesMapper">
+
+<resultMap id="usersDetailMap" type="com.center.hamonize.user.UsersDetail">
+	<result property="seq"			column="seq"			/>
+	<result property="enterpriseno"	column="enterpriseno"/>
+	<result property="userno"		column="userno"		/>
+	<result property="userat"		column="userat"		/>
+	<result property="activeat"		column="activeat"		/>
+</resultMap> 
+
+<resultMap id="usersMap" type="com.center.hamonize.user.Users">
+	<result property="representat"		column="representat"		/>
+	<result property="userno"			column="userno"			/>
+	<result property="userid"			column="userid"			/>
+	<result property="username"			column="username"			/>
+	<result property="userpassword"		column="userpassword"	/>
+	<result property="userprofileimg"	column="userprofileimg"	/>
+	<result property="aboutme"			column="aboutme"			/>
+	<result property="userurl"			column="userurl"			/>
+	<result property="useremail"		column="useremail"		/>
+	<result property="userstatus"		column="userstatus"		/>
+	<result property="newslater"		column="newslater"		/>
+	<result property="registerdate"		column="registerdate"	/>
+	<result property="updatedate"		column="updatedate"		/>
+	<collection property="usersDetail" resultMap="usersDetailMap" />
+</resultMap>
+
+
+<update id="updateEnterprises" parameterType="com.center.hamonize.enterprise.Enterprises">
+UPDATE
+	tb_enterprises
+SET
+	enterprisename = #{enterprisename},
+	enterpriseemail = #{enterpriseemail},
+	enterpriseurl = #{enterpriseurl},
+	enterprisearea = #{enterprisearea},
+	enterpriseabout = #{enterpriseabout},
+	updatedate = now()
+WHERE
+	enterpriseno = #{enterpriseno}
+</update>
+
+<update id="updateEnterprisePw" parameterType="com.center.hamonize.enterprise.EnterprisePwVO">
+UPDATE 
+    tb_users
+SET 
+    userpassword = #{enterprisepasswordnew},
+    updatedate = now()
+WHERE
+    userno = (select userno from tb_users_detail where enterpriseno = #{enterpriseno} and representat = '1' )
+    /*+
+   AND userpassword = # {enterprisepassword}
+    */
+</update>
+
+<update id="updateEnterprisesimg" parameterType="com.center.hamonize.enterprise.Enterprises">
+UPDATE
+	tb_enterprises
+SET
+	enterpriseimg = #{enterpriseimg},
+	updatedate = now()
+WHERE
+	enterpriseno = #{enterpriseno}
+</update>
+
+<select id="getMembersList" parameterType="com.center.hamonize.user.UsersDetail" resultMap="usersMap">
+SELECT 
+	U.userno,
+	U.username,
+	U.userprofileimg,
+	UD.userat,
+	UD.activeat,
+	(select representat from tb_enterprises where userno = U.userno) as representat
+FROM
+    tb_users U
+LEFT JOIN 
+    tb_users_detail UD
+ON 
+    U.userno = UD.userno
+WHERE
+	UD.enterpriseno = #{enterpriseno}
+<!-- 	AND UD.userat = #{userat} -->
+</select>
+
+<update id="updateActivaet" parameterType="com.center.hamonize.user.UsersDetail">
+UPDATE 
+	tb_users_detail 
+SET 
+	activeat = #{activeat}
+WHERE 
+	enterpriseno = #{enterpriseno}
+	AND userno = #{userno}
+</update>
+
+<update id="updateUserat" parameterType="com.center.hamonize.user.UsersDetail">
+<!-- UPDATE 
+	tb_users_detail 
+SET 
+	userat = #{userat}
+WHERE 
+	enterpriseno = #{enterpriseno}
+	AND userno = #{userno} -->
+UPDATE 
+	tb_users_detail 
+SET 
+	userat = #{userat}
+WHERE 
+ userno = #{userno}
+</update>
+
+
+<select id="cntQuestionsById" parameterType="Integer" resultType="Integer">
+SELECT 
+	count(*) 
+FROM 
+	tb_questions
+WHERE
+	userno = #{seq}
+</select>
+
+<select id="cntAnswerById" parameterType="Integer" resultType="Integer">
+SELECT 
+	count(*) 
+FROM 
+	tb_answers
+WHERE
+	userno = #{seq}
+</select>
+
+<select id="cntTagAndWikiById" parameterType="com.center.hamonize.wiki.Wiki" resultType="Integer">
+SELECT 
+	count(*) 
+FROM 
+	tb_wiki
+WHERE
+	userno = CAST(#{userno} AS TEXT)
+	AND section = #{section}
+</select>
+
+<select id="findTagAndWikiByUserno" parameterType="com.center.hamonize.wiki.Wiki" resultType="com.center.hamonize.wiki.Wiki">
+SELECT 
+	wikino,
+	title
+FROM 
+	tb_wiki
+WHERE
+	userno = CAST(#{userno} AS TEXT)
+	AND section = #{section}
+ORDER BY registerdate DESC
+LIMIT 5
+</select>
+
+<select id="getScore" parameterType="Integer" resultType="Integer">
+	SELECT 
+	<foreach collection="list" item="item" open="(" close=")" separator="+">
+		COALESCE((SELECT score FROM tb_score WHERE userno=#{item.userno}), 0)
+		+ COALESCE((SELECT (sum(likes) - sum(dislikes)) as score FROM tb_vote WHERE userno=#{item.userno}), 0)
+	</foreach>
+</select>
+
+<select id="getPromteList" resultType="com.center.hamonize.enterprise.Enterprises">
+SELECT enterprisename, enterpriseno, enterpriseabout, enterpriseimg
+FROM public.tb_enterprises
+ORDER BY registerdate DESC
+LIMIT 5
+</select>
+
+<sql id="where_getScoregraph1">
+userno = #{item.userno}
+and registerdate <![CDATA[ < ]]> to_date(to_char(now(), 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+and registerdate <![CDATA[ >= ]]>  to_date(to_char(now() - '1 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+</sql>
+<sql id="where_getScoregraph2">
+userno = #{item.userno}
+and registerdate <![CDATA[ < ]]>  to_date(to_char(now() - '1 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+and registerdate <![CDATA[ >= ]]>  to_date(to_char(now() - '2 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+</sql>
+<sql id="where_getScoregraph3">
+userno = #{item.userno}
+and registerdate <![CDATA[ < ]]>  to_date(to_char(now() - '2 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+and registerdate <![CDATA[ >= ]]>  to_date(to_char(now() - '3 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+</sql>
+<sql id="where_getScoregraph4">
+userno = #{item.userno}
+and registerdate <![CDATA[ < ]]>  to_date(to_char(now() - '3 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+and registerdate <![CDATA[ >= ]]>  to_date(to_char(now() - '4 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+</sql>
+<sql id="where_getScoregraph5">
+userno = #{item.userno}
+and registerdate <![CDATA[ < ]]>  to_date(to_char(now() - '4 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+and registerdate <![CDATA[ >= ]]>  to_date(to_char(now() - '5 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+</sql>
+<sql id="where_getScoregraph6">
+userno = #{item.userno}
+and registerdate <![CDATA[ < ]]>  to_date(to_char(now() - '5 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+and registerdate <![CDATA[ >= ]]>  to_date(to_char(now() - '6 month'::interval, 'YYYY-MM-01') || ' 00:00:00.000', 'YYYY-MM-31')
+</sql>
+
+<select id="getScoregraph" parameterType="com.center.hamonize.user.Users" resultType="String">
+SELECT 
+	CAST(
+		<foreach collection="list" item="item" separator="+">
+			COALESCE(( SELECT count(*) FROM tb_questions WHERE <include refid="where_getScoregraph1"/> ), 0)
+			+ COALESCE(( SELECT count(*) FROM tb_answers WHERE <include refid="where_getScoregraph1"/> ), 0)
+		</foreach>
+	AS TEXT)
+	
+	|| ',' ||
+	
+	CAST(
+		<foreach collection="list" item="item" separator="+">
+			COALESCE(( SELECT count(*) FROM tb_questions WHERE <include refid="where_getScoregraph2"/> ), 0)
+			+ COALESCE(( SELECT count(*) FROM tb_answers WHERE <include refid="where_getScoregraph2"/> ), 0)
+		</foreach>
+	AS TEXT)
+	
+	|| ',' ||
+	
+	CAST(
+		<foreach collection="list" item="item" separator="+">
+			COALESCE(( SELECT count(*) FROM tb_questions WHERE <include refid="where_getScoregraph3"/> ), 0)
+			+ COALESCE(( SELECT count(*) FROM tb_answers WHERE <include refid="where_getScoregraph3"/> ), 0)
+		</foreach>
+	AS TEXT)
+	
+	|| ',' ||
+	
+	CAST(
+		<foreach collection="list" item="item" separator="+">
+			COALESCE(( SELECT count(*) FROM tb_questions WHERE <include refid="where_getScoregraph4"/> ), 0)
+			+ COALESCE(( SELECT count(*) FROM tb_answers WHERE <include refid="where_getScoregraph4"/> ), 0)
+		</foreach>
+	AS TEXT)
+	
+	|| ',' ||
+	
+	CAST(
+		<foreach collection="list" item="item" separator="+">
+			COALESCE(( SELECT count(*) FROM tb_questions WHERE <include refid="where_getScoregraph5"/> ), 0)
+			+ COALESCE(( SELECT count(*) FROM tb_answers WHERE <include refid="where_getScoregraph5"/> ), 0)
+		</foreach>
+	AS TEXT)
+	
+	|| ',' ||
+	
+	CAST(
+		<foreach collection="list" item="item" separator="+">
+			COALESCE(( SELECT count(*) FROM tb_questions WHERE <include refid="where_getScoregraph6"/> ), 0)
+			+ COALESCE(( SELECT count(*) FROM tb_answers WHERE <include refid="where_getScoregraph6"/> ), 0)
+		</foreach>
+	AS TEXT)
+</select>
+
+
+
+	<select id="getQuestionList" parameterType="com.center.hamonize.question.Questions" resultType="com.center.hamonize.question.Questions">
+	 select
+	        questionno,
+	        answercompletecnt,
+	        contents ,
+	        deleteat ,
+	        editauth ,
+	        firstuserno,
+	        questiontotalcnt,
+	        readcnt ,
+	        registerdate,
+	        section, 
+	        tagno ,
+	        title ,
+	        updatedate,
+	        userno 
+	    from
+	        tb_questions  
+	    where
+	        userno in ( select userno from tb_users_detail where enterpriseno = #{userno} )
+	    order by registerdate desc
+	     limit 4
+	</select>	
+
+	<select id="getQuestionListCnt" parameterType="com.center.hamonize.question.Questions" resultType="Integer">
+	 select
+	       count(*)
+	    from
+	        tb_questions  
+	    where
+	        userno in ( select userno from tb_users_detail where enterpriseno = #{userno} )
+	</select>	
+	
+	
+</mapper>
